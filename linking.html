@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+
+        #container {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .item {
+            position: relative;
+            box-sizing: border-box;
+            border: 1px solid #000;
+        }
+        .item-content {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%;
+            overflow: hidden;
+        }
+        .item-content img {
+            position: absolute;
+            display: block;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: auto;
+            pointer-events: none;
+        }
+        .item-selected {
+            border: 2px solid #e63d26;
+        }
+        .item-hidden .item-content img {
+            display: none;
+        }
+        .add-level-btn {
+            position: fixed;
+            height: 30px;
+            bottom: 0;
+            right: 0;
+        }
+        .top {
+            color: #000;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+        }
+        #score,
+        #time {
+            color: #e63d26;
+            margin-left: 2px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="top">
+        <div>
+            <span>分数:</span><span id="score"></span>
+        </div>
+        <div>
+            <span>剩余时间:</span><span id="time"></span>
+        </div>
+    </div>
+    <div id="container">
+
+    </div>
+    
+    <div id="add-level-btn" class="add-level-btn">
+        当前等级1 ，点击增加
+    </div>
+
+    <script>
+
+        var itemHtmlTemplate = ' \
+            <div class="item" style="width: {{item-width}};" data-row={{row}} data-column={{column}} > \
+                <div class="item-content" > \
+                    <img src="{{img-src}}">  \
+                </div> \
+            </div> \
+        ';
+
+        var grids;
+        var time;
+        var levelInfos = {
+            '1': {
+                imgs: [
+                    {id: 'caomei', imgUrl: 'https://www.motivape.cn/static/img/product-tan-pic2.png'},
+                    {id: 'xiangjiao', imgUrl: 'https://www.motivape.cn/static/img/product-tan-pic6.png'}
+                ],
+                time: 60
+            }
+        }
+        var selectedGrid = null;
+        var selectedItemDom = null;
+        var level = 1;
+        var score = 0;
+        var leftTime;
+        var intervalId;
+        var timeoutId;
+        var isOver = false;
+        function resetGame(level) {
+            var levelInfo = levelInfos[level];
+            if(!levelInfo) {
+                // alert('不存在level:' + level);
+                // return;
+                levelInfo = levelInfos[1];
+            }
+            var time = levelInfo.time;
+            var imgs = levelInfo.imgs;
+            var rowNum = 2 * level;
+            var columnNum = 2 * level;
+            var imgIndex = 0;
+            grids = [];
+            for(var i = 0; i < rowNum; i++) {
+                grids[i] = [];
+                for(var j = 0; j < columnNum; j+=2) {
+                    var imgInfo = imgs[imgIndex];
+                    imgIndex ++;
+                    if(imgIndex >= imgs.length) {
+                        imgIndex = 0;
+                    }
+                    grids[i][j] = {
+                        row: i,
+                        column: j,
+                        id: imgInfo.id,
+                        imgUrl: imgInfo.imgUrl
+                    }
+                    grids[i][j + 1] = {
+                        row: i,
+                        column: j + 1,
+                        id: imgInfo.id,
+                        imgUrl: imgInfo.imgUrl
+                    }
+                }
+            }
+            // 打乱顺序
+            for(var i = 0; i < grids.length; i++) {
+                for(var j = 0; j < grids[i].length; j++) {
+                    var row = Math.floor(Math.random() * grids.length);
+                    var column = Math.floor(Math.random() * grids[i].length);
+                    var temp = grids[i][j];
+                    grids[i][j] = grids[row][column];
+                    grids[row][column] = temp;
+                    grids[i][j].row = i;
+                    grids[i][j].column = j;
+                    grids[row][column].row = row;
+                    grids[row][column].column = column;
+                }
+            }
+            isOver = false;
+            score = 0;
+            leftTime = levelInfo.time * 1000;
+            if(intervalId) {
+                clearInterval(intervalId);
+            }
+            if(timeoutId) {
+                clearTimeout(timeoutId);
+            }
+            renderTime();
+            setInterval(function() {
+                leftTime -= 1000;
+                if(leftTime < 0) {
+                    leftTime = 0;
+                }
+                if(leftTime === 0) {
+                    isOver = true;
+                }
+                renderTime();
+            }, 1000);
+            renderScore();
+            renderGrid();
+            addEventListeners();
+        }
+
+        function renderGrid() {
+            var container = document.getElementById('container');
+            var htmlStr = '';
+            var percent = (100 / grids.length - 0.01) + '%';
+            for(var i = 0; i < grids.length; i++) {
+                for(var j = 0; j < grids[i].length; j++) {
+                    var girdInfo = grids[i][j];
+                    var itemHtml = itemHtmlTemplate.replace('{{item-width}}', percent);
+                    itemHtml = itemHtml.replace('{{img-src}}', girdInfo.imgUrl);
+                    itemHtml = itemHtml.replace('{{row}}', girdInfo.row);
+                    itemHtml = itemHtml.replace('{{column}}', girdInfo.column);
+                    htmlStr += itemHtml;
+                }
+            }
+            container.innerHTML = htmlStr;
+        }
+
+        function addEventListeners() {
+            var container = document.getElementById('container');
+            for(var i = 0; i < container.children.length; i++) {
+                var item = container.children[i];
+                item.addEventListener('click', handleItemClick);
+                item.addEventListener('touchend', handleItemClick);
+            } 
+            var addLevelBtn = document.getElementById('add-level-btn');
+            addLevelBtn.addEventListener('click', handleAddLevelBtnClick);
+            addLevelBtn.addEventListener('touchend', handleAddLevelBtnClick);
+        }
+
+        function handleItemClick(e) {
+            e.preventDefault();
+            var item = this;
+            var row = parseInt(item.getAttribute('data-row'));
+            var column = parseInt(item.getAttribute('data-column'));
+            var clickGrid = grids[row][column]; 
+            console.log('row', row);
+            console.log('column', column);
+            if(isOver) {
+                alert('游戏已结束，可以截图分享到社群哦');
+                return;
+            }
+            if(clickGrid.hidden) {
+                return;
+            }
+            if(selectedGrid == null) {
+                selectedGrid = grids[row][column];
+                selectedItemDom = item;
+                item.classList.add('item-selected');
+                return;
+            }
+            if(selectedGrid.row === row && selectedGrid.column === column) {
+                // selectedGrid = null;
+                // selectedItemDom = null;
+                // item.classList.remove('item-selected');
+                return;
+            }
+            if(clickGrid.id === selectedGrid.id) {
+                clickGrid.hidden = true;
+                selectedGrid.hidden = true;
+                selectedItemDom.classList.remove('item-selected');
+                selectedItemDom.classList.add('item-hidden');
+                item.classList.add('item-hidden');
+                selectedGrid = null;
+                selectedItemDom = null;
+                score ++;
+                renderScore();
+                return;
+            } else {
+                selectedItemDom.classList.remove('item-selected');
+                selectedGrid = clickGrid;
+                selectedItemDom = item;
+                item.classList.add('item-selected');
+            }
+
+        }
+
+        function handleAddLevelBtnClick(e) {
+            e.preventDefault();
+            level ++;
+            var addLevelBtn = document.getElementById('add-level-btn');
+            addLevelBtn.innerHTML = '当前等级:' + level + '，点击增加';
+            resetGame(level);
+        }
+
+        function renderScore() {
+            var scoreDom = document.getElementById('score');
+            scoreDom.innerHTML = score;
+        }
+
+        function renderTime() {
+            var timeDom = document.getElementById('time');
+            timeDom.innerHTML = Math.floor(leftTime / 1000) + '秒';
+        }
+
+        resetGame(level);
+
+
+
+    </script>
+
+</body>
+</html>
