@@ -36,11 +36,10 @@
         .item-hidden .item-content img {
             display: none;
         }
-        .add-level-btn {
-            position: fixed;
+        .minus-level-btn,
+        .add-level-btn,
+        .level {
             height: 30px;
-            bottom: 0;
-            right: 0;
         }
         .top {
             color: #000;
@@ -53,6 +52,15 @@
         #time {
             color: #e63d26;
             margin-left: 2px;
+        }
+        .bottom {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 10px 10px;
         }
 
     </style>
@@ -71,8 +79,10 @@
 
     </div>
     
-    <div id="add-level-btn" class="add-level-btn">
-        当前等级1 ，点击增加
+    <div class="bottom">
+        <div id="minus-level-btn" class="minus-level-btn">点击减少</div>
+        <div id="level">当前等级1 </div>
+        <div id="add-level-btn" class="add-level-btn">点击增加</div>
     </div>
 
     <script>
@@ -102,7 +112,6 @@
         var score = 0;
         var leftTime;
         var intervalId;
-        var timeoutId;
         var isOver = false;
         function resetGame(level) {
             var levelInfo = levelInfos[level];
@@ -159,11 +168,8 @@
             if(intervalId) {
                 clearInterval(intervalId);
             }
-            if(timeoutId) {
-                clearTimeout(timeoutId);
-            }
             renderTime();
-            setInterval(function() {
+            intervalId = setInterval(function() {
                 leftTime -= 1000;
                 if(leftTime < 0) {
                     leftTime = 0;
@@ -175,6 +181,7 @@
             }, 1000);
             renderScore();
             renderGrid();
+            renderLevel();
             addEventListeners();
         }
 
@@ -205,6 +212,9 @@
             var addLevelBtn = document.getElementById('add-level-btn');
             addLevelBtn.addEventListener('click', handleAddLevelBtnClick);
             addLevelBtn.addEventListener('touchend', handleAddLevelBtnClick);
+            var minusLevelBtn = document.getElementById('minus-level-btn');
+            minusLevelBtn.addEventListener('click', handleMinusLevelBtnClick);
+            minusLevelBtn.addEventListener('touchend', handleMinusLevelBtnClick);
         }
 
         function handleItemClick(e) {
@@ -258,7 +268,16 @@
             e.preventDefault();
             level ++;
             var addLevelBtn = document.getElementById('add-level-btn');
-            addLevelBtn.innerHTML = '当前等级:' + level + '，点击增加';
+            resetGame(level);
+        }
+
+        function handleMinusLevelBtnClick(e) {
+            e.preventDefault();
+            level --;
+            if(level < 1) {
+                level = 1;
+            }
+            var addLevelBtn = document.getElementById('add-level-btn');
             resetGame(level);
         }
 
@@ -270,6 +289,11 @@
         function renderTime() {
             var timeDom = document.getElementById('time');
             timeDom.innerHTML = Math.floor(leftTime / 1000) + '秒';
+        }
+
+        function renderLevel() {
+            var levelDom = document.getElementById('level');
+            levelDom.innerHTML =  'level:' + level;
         }
 
         resetGame(level);
